@@ -3,28 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>面談予約システム</title>
-  <!-- デザイン用のTailwind CSS -->
+  <title>宣材撮影時間予約システム / Photo Shoot Booking</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Supabaseのライブラリ -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans p-4">
 
-  <div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
-    <h1 class="text-2xl font-bold text-center mb-6 text-blue-700">面談予約</h1>
+  <div class="max-w-xl mx-auto bg-white p-6 rounded-lg shadow-md">
+    <!-- タイトル 日英併記 -->
+    <h1 class="text-xl font-bold text-center text-blue-800 leading-tight">
+      宣材撮影時間予約システム<br>
+      <span class="text-sm font-normal text-gray-500">Photo Shoot Booking System</span>
+    </h1>
 
-    <!-- 未予約者の表示エリア -->
-    <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
-      <h2 class="text-sm font-bold text-yellow-800 mb-2">未予約の方</h2>
-      <p id="unbooked-list" class="text-sm text-yellow-700">読み込み中...</p>
+    <!-- 案内テキスト 日英併記 -->
+    <div class="mt-4 mb-6 p-4 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900 leading-relaxed">
+      <p class="mb-2">9/24までは何度でも変更可能です。スケジュール交換は、当事者同士で直接話し合って入力変更してください。</p>
+      <p class="text-xs text-blue-700">You can change your booking anytime until Sep 24. To swap time slots, please arrange it directly with the other person and update your booking here.</p>
     </div>
 
-    <!-- 面談枠の表示エリア -->
-    <h2 class="text-lg font-bold mb-3 border-b pb-2">予約枠一覧</h2>
-    <div id="slots-container" class="space-y-3">
-      <!-- ここにJavaScriptで枠が追加されます -->
-      <p class="text-gray-500 text-sm">読み込み中...</p>
+    <!-- プロ選手セクション -->
+    <div class="mb-10">
+      <h2 class="text-lg font-bold mb-3 border-b-2 border-blue-800 pb-2 flex justify-between items-end">
+        プロ選手用 <span class="text-xs font-normal text-gray-500">Pro Players</span>
+      </h2>
+      <div id="pro-unbooked" class="text-sm text-red-600 mb-3 font-bold"></div>
+      <div id="pro-slots" class="space-y-2"></div>
+    </div>
+
+    <!-- 社員選手セクション -->
+    <div>
+      <h2 class="text-lg font-bold mb-3 border-b-2 border-green-700 pb-2 flex justify-between items-end">
+        社員選手用 <span class="text-xs font-normal text-gray-500">Employee Players</span>
+      </h2>
+      <div id="employee-unbooked" class="text-sm text-red-600 mb-3 font-bold"></div>
+      <div id="employee-slots" class="space-y-2"></div>
     </div>
   </div>
 
@@ -36,126 +49,109 @@
 
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
-    // データを保持する変数
     let participants = [];
     let slots = [];
 
-    // 初期データの読み込み
     async function loadData() {
-      // 対象者を全員取得
       const { data: pData } = await supabase.from('participants').select('*');
       participants = pData || [];
 
-      // 枠と、予約者の情報を合わせて取得
       const { data: sData } = await supabase
         .from('slots')
         .select('*, participants(name)')
-        .order('start_time', { ascending: true });
+        .order('start_time', { ascending: true })
+        .order('slot_number', { ascending: true });
       slots = sData || [];
 
       render();
     }
 
-    // 画面の描画
+    // 日付フォーマット用の関数 (例: 9/29(火) 13:30)
+    function formatDateTime(dateStr) {
+      const d = new Date(dateStr);
+      const days = ['日', '月', '火', '水', '木', '金', '土'];
+      return `${d.getMonth() + 1}/${d.getDate()}(${days[d.getDay()]}) ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+
     function render() {
-      // 1. 未予約者の抽出と表示
       const bookedIds = slots.map(s => s.participant_id).filter(id => id !== null);
-      const unbooked = participants.filter(p => !bookedIds.includes(p.id));
       
-      const unbookedEl = document.getElementById('unbooked-list');
-      if(unbooked.length === 0) {
-        unbookedEl.textContent = "全員予約完了しました🎉";
-      } else {
-        unbookedEl.textContent = unbooked.map(p => p.name).join('、');
-      }
-
-      // 2. 枠リストの表示
-      const container = document.getElementById('slots-container');
-      container.innerHTML = '';
-
-      slots.forEach(slot => {
-        const div = document.createElement('div');
-        div.className = "flex items-center justify-between p-3 border rounded-lg bg-gray-50";
-        
-        // 日時のフォーマット (例: 10:00)
-        const date = new Date(slot.start_time);
-        const timeStr = date.getHours() + ':' + String(date.getMinutes()).padStart(2, '0');
-
-        let rightContent = '';
-        
-        if (slot.participant_id) {
-          // すでに予約されている場合
-          const pName = slot.participants ? slot.participants.name : '不明';
-          rightContent = `
-            <div class="text-right">
-              <span class="font-bold text-blue-600 block">${pName} さん</span>
-              <button onclick="cancelSlot('${slot.id}')" class="text-xs text-gray-500 underline mt-1">取り消し・変更</button>
-            </div>
-          `;
+      // カテゴリごとに処理
+      ['pro', 'employee'].forEach(category => {
+        // 対象の未予約者を抽出
+        const unbooked = participants.filter(p => p.category === category && !bookedIds.includes(p.id));
+        const unbookedEl = document.getElementById(`${category}-unbooked`);
+        if(unbooked.length === 0) {
+          unbookedEl.innerHTML = `<span class="text-green-600">全員予約完了しました🎉</span>`;
         } else {
-          // 空き枠の場合（プルダウンと予約ボタンを表示）
-          let options = `<option value="">名前を選択</option>`;
-          unbooked.forEach(p => {
-            options += `<option value="${p.id}">${p.name}</option>`;
-          });
-
-          rightContent = `
-            <div class="flex flex-col gap-2 w-1/2">
-              <select id="select-${slot.id}" class="text-sm border p-1 rounded">
-                ${options}
-              </select>
-              <button onclick="bookSlot('${slot.id}')" class="bg-blue-600 text-white text-sm py-1 px-3 rounded shadow hover:bg-blue-700">予約する</button>
-            </div>
-          `;
+          unbookedEl.textContent = `未予約: ${unbooked.map(p => p.name).join('、')}`;
         }
 
-        div.innerHTML = `
-          <div class="font-bold text-gray-700">${timeStr}〜</div>
-          ${rightContent}
-        `;
-        container.appendChild(div);
+        // 対象の枠を抽出して表示
+        const targetSlots = slots.filter(s => s.category === category);
+        const container = document.getElementById(`${category}-slots`);
+        container.innerHTML = '';
+
+        targetSlots.forEach(slot => {
+          const div = document.createElement('div');
+          div.className = "flex items-center justify-between p-2 border rounded bg-gray-50";
+          
+          const timeStr = formatDateTime(slot.start_time);
+
+          let rightContent = '';
+          if (slot.participant_id) {
+            const pName = slot.participants ? slot.participants.name : '不明';
+            rightContent = `
+              <div class="text-right">
+                <span class="font-bold text-gray-800 block">${pName} さん</span>
+                <button onclick="cancelSlot('${slot.id}')" class="text-xs text-gray-500 underline mt-1">変更(Cancel)</button>
+              </div>
+            `;
+          } else {
+            let options = `<option value="">選択(Select)</option>`;
+            unbooked.forEach(p => {
+              options += `<option value="${p.id}">${p.name}</option>`;
+            });
+            rightContent = `
+              <div class="flex gap-2 items-center">
+                <select id="select-${slot.id}" class="text-sm border p-1 rounded max-w-[120px]">
+                  ${options}
+                </select>
+                <button onclick="bookSlot('${slot.id}')" class="bg-blue-600 text-white text-xs py-1.5 px-3 rounded shadow hover:bg-blue-700">予約</button>
+              </div>
+            `;
+          }
+
+          div.innerHTML = `
+            <div class="text-sm text-gray-700 font-medium">
+              ${timeStr} <span class="ml-1 text-xs bg-gray-200 text-gray-600 px-1 rounded">枠${slot.slot_number}</span>
+            </div>
+            ${rightContent}
+          `;
+          container.appendChild(div);
+        });
       });
     }
 
-    // 予約する処理
     async function bookSlot(slotId) {
       const selectEl = document.getElementById(`select-${slotId}`);
       const participantId = selectEl.value;
-      
       if (!participantId) {
-        alert('名前を選択してください');
+        alert('名前を選択してください / Please select your name');
         return;
       }
-
-      const { error } = await supabase
-        .from('slots')
-        .update({ participant_id: participantId })
-        .eq('id', slotId);
-
-      if (error) {
-        alert('エラーが発生しました。すでに別の人が予約した可能性があります。');
-      } else {
-        loadData(); // 再読み込み
-      }
+      const { error } = await supabase.from('slots').update({ participant_id: participantId }).eq('id', slotId);
+      if (error) alert('エラーが発生しました / Error occurred');
+      else loadData();
     }
 
-    // キャンセル（変更）する処理
     async function cancelSlot(slotId) {
-      if(!confirm('この予約を取り消して、空き枠に戻しますか？（交換する場合は一度取り消してください）')) return;
-
-      const { error } = await supabase
-        .from('slots')
-        .update({ participant_id: null })
-        .eq('id', slotId);
-
-      if (error) {
-        alert('エラーが発生しました');
-      } else {
-        loadData(); // 再読み込み
-      }
+      if(!confirm('この予約を取り消して空き枠に戻しますか？\nCancel this booking?')) return;
+      const { error } = await supabase.from('slots').update({ participant_id: null }).eq('id', slotId);
+      if (error) alert('エラーが発生しました / Error occurred');
+      else loadData();
     }
 
-    // アプリ開始
     loadData();
   </script>
 </body>
