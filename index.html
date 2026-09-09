@@ -127,6 +127,10 @@
             `;
           }
 
+          // 丸数字に変換するための定義
+const slotMarks = { 1: '❶', 2: '❷', 3: '❸' };
+const mark = slotMarks[slot.slot_number] || slot.slot_number;
+          
           div.innerHTML = `
             <div class="text-sm text-gray-700 font-medium">
               ${timeStr} <span class="ml-1 text-xs bg-gray-200 text-gray-600 px-1 rounded">枠${slot.slot_number}</span>
