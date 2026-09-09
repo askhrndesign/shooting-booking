@@ -42,25 +42,27 @@
   </div>
 
   <script>
-    // ▼▼▼ 正しい形式に修正しました ▼▼▼
     const SUPABASE_URL = 'https://uycmovhuawjneoicvdpb.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5Y21vdmh1YXdqbmVvaWN2ZHBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxOTc4MzIsImV4cCI6MjA4Mzc3MzgzMn0.vQnxkNO9xNk2g1Yxs3nHVchgzU1FK_SHuCI9dVGNTjQ';
-    // ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲ ▲▲▲
-
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
     let participants = [];
     let slots = [];
 
     async function loadData() {
-      const { data: pData } = await supabase.from('participants').select('*');
+      // 1. 名簿を取得
+      const { data: pData, error: pError } = await db.from('participants').select('*');
+      if (pError) console.error('Participants error:', pError);
       participants = pData || [];
 
-      const { data: sData } = await supabase
+      // 2. スロットを取得（リレーションを使わずシンプルに全件取得）
+      const { data: sData, error: sError } = await db
         .from('slots')
-        .select('*, participants(name)')
+        .select('*')
         .order('start_time', { ascending: true })
         .order('slot_number', { ascending: true });
+      if (sError) console.error('Slots error:', sError);
       slots = sData || [];
 
       render();
@@ -100,7 +102,10 @@
 
           let rightContent = '';
           if (slot.participant_id) {
-            const pName = slot.participants ? slot.participants.name : '不明';
+            // participants配列から該当する名前を探す
+            const matchedP = participants.find(p => p.id === slot.participant_id);
+            const pName = matchedP ? matchedP.name : '不明';
+            
             rightContent = `
               <div class="text-right">
                 <span class="font-bold text-gray-800 block">${pName} さん</span>
@@ -140,14 +145,14 @@
         alert('名前を選択してください / Please select your name');
         return;
       }
-      const { error } = await supabase.from('slots').update({ participant_id: participantId }).eq('id', slotId);
+      const { error } = await db.from('slots').update({ participant_id: participantId }).eq('id', slotId);
       if (error) alert('エラーが発生しました / Error occurred');
       else loadData();
     }
 
     async function cancelSlot(slotId) {
       if(!confirm('この予約を取り消して空き枠に戻しますか？\nCancel this booking?')) return;
-      const { error } = await supabase.from('slots').update({ participant_id: null }).eq('id', slotId);
+      const { error } = await db.from('slots').update({ participant_id: null }).eq('id', slotId);
       if (error) alert('エラーが発生しました / Error occurred');
       else loadData();
     }
