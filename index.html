@@ -68,12 +68,12 @@
       render();
     }
 
-    // 日付フォーマット用の関数 (例: 9/29(火) 13:30)
-    function formatDateTime(dateStr) {
-      const d = new Date(dateStr);
-      const days = ['日', '月', '火', '水', '木', '金', '土'];
-      return `${d.getMonth() + 1}/${d.getDate()}(${days[d.getDay()]}) ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-    }
+   // 日付フォーマット用の関数 (例: 9/29(Tue) 13:30)
+function formatDateTime(dateStr) {
+  const d = new Date(dateStr);
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return `${d.getMonth() + 1}/${d.getDate()}(${days[d.getDay()]}) ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
     function render() {
       const bookedIds = slots.map(s => s.participant_id).filter(id => id !== null);
