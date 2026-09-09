@@ -86,7 +86,7 @@
         if(unbooked.length === 0) {
           unbookedEl.innerHTML = `<span class="text-green-600">全員予約完了しました🎉</span>`;
         } else {
-          unbookedEl.textContent = `未予約: ${unbooked.map(p => p.name).join('、')}`;
+         unbookedEl.textContent = `未予約 (Unbooked): ${unbooked.map(p => p.name).join('、')}`;
         }
 
         // 対象の枠を抽出して表示
