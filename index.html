@@ -3,165 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>宣材撮影時間予約システム / Photo Shoot Booking</title>
+  <title>受付終了 / Booking Closed</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans p-4">
-
-  <div class="max-w-xl mx-auto bg-white p-6 rounded-lg shadow-md">
-    <!-- タイトル 日英併記 -->
-    <h1 class="text-xl font-bold text-center text-blue-800 leading-tight">
-      宣材撮影時間予約システム<br>
-      <span class="text-sm font-normal text-gray-500">Photo Shoot Booking System</span>
+<body class="bg-gray-100 text-gray-800 font-sans p-6 flex items-center justify-center min-h-screen">
+  <div class="max-w-md w-full bg-white p-6 rounded-lg shadow-md text-center">
+    <h1 class="text-lg font-bold text-gray-800 mb-2">
+      宣材撮影の予約受付は終了しました
     </h1>
-
-    <!-- 案内テキスト 日英併記 -->
-    <div class="mt-4 mb-6 p-4 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900 leading-relaxed">
-      <p class="mb-2">9/24までは何度でも変更可能です。スケジュール交換は、当事者同士で直接話し合って入力変更してください。</p>
-      <p class="text-xs text-blue-700">You can change your booking anytime until Sep 24. To swap time slots, please arrange it directly with the other person and update your booking here.</p>
-    </div>
-
-    <!-- プロ選手セクション -->
-    <div class="mb-10">
-      <h2 class="text-lg font-bold mb-3 border-b-2 border-blue-800 pb-2 flex justify-between items-end">
-        プロ選手用 <span class="text-xs font-normal text-gray-500">Pro Players</span>
-      </h2>
-      <div id="pro-unbooked" class="text-sm text-red-600 mb-3 font-bold"></div>
-      <div id="pro-slots" class="space-y-2"></div>
-    </div>
-
-    <!-- 社員選手セクション -->
-    <div>
-      <h2 class="text-lg font-bold mb-3 border-b-2 border-green-700 pb-2 flex justify-between items-end">
-        社員選手用 <span class="text-xs font-normal text-gray-500">Employee Players</span>
-      </h2>
-      <div id="employee-unbooked" class="text-sm text-red-600 mb-3 font-bold"></div>
-      <div id="employee-slots" class="space-y-2"></div>
-    </div>
+    <p class="text-sm text-gray-500">
+      Photo shoot booking has been closed.
+    </p>
   </div>
-
-  <script>
-    const SUPABASE_URL = 'https://uycmovhuawjneoicvdpb.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5Y21vdmh1YXdqbmVvaWN2ZHBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxOTc4MzIsImV4cCI6MjA4Mzc3MzgzMn0.vQnxkNO9xNk2g1Yxs3nHVchgzU1FK_SHuCI9dVGNTjQ';
-    
-    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    
-    let participants = [];
-    let slots = [];
-
-    async function loadData() {
-      // 1. 名簿を取得
-      const { data: pData, error: pError } = await db.from('participants').select('*');
-      if (pError) console.error('Participants error:', pError);
-      participants = pData || [];
-
-      // 2. スロットを取得（リレーションを使わずシンプルに全件取得）
-      const { data: sData, error: sError } = await db
-        .from('slots')
-        .select('*')
-        .order('start_time', { ascending: true })
-        .order('slot_number', { ascending: true });
-      if (sError) console.error('Slots error:', sError);
-      slots = sData || [];
-
-      render();
-    }
-
-   // 日付フォーマット用の関数 (例: 9/29(Tue) 13:30)
-function formatDateTime(dateStr) {
-  const d = new Date(dateStr);
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  return `${d.getMonth() + 1}/${d.getDate()}(${days[d.getDay()]}) ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-    function render() {
-      const bookedIds = slots.map(s => s.participant_id).filter(id => id !== null);
-      
-      // カテゴリごとに処理
-      ['pro', 'employee'].forEach(category => {
-        // 対象の未予約者を抽出
-        const unbooked = participants.filter(p => p.category === category && !bookedIds.includes(p.id));
-        const unbookedEl = document.getElementById(`${category}-unbooked`);
-        if(unbooked.length === 0) {
-          unbookedEl.innerHTML = `<span class="text-green-600">全員予約完了しました🎉</span>`;
-        } else {
-         unbookedEl.textContent = `未予約 (Unbooked): ${unbooked.map(p => p.name).join('、')}`;
-        }
-
-        // 対象の枠を抽出して表示
-        const targetSlots = slots.filter(s => s.category === category);
-        const container = document.getElementById(`${category}-slots`);
-        container.innerHTML = '';
-
-        targetSlots.forEach(slot => {
-          const div = document.createElement('div');
-          div.className = "flex items-center justify-between p-2 border rounded bg-gray-50";
-          
-          const timeStr = formatDateTime(slot.start_time);
-
-          let rightContent = '';
-          if (slot.participant_id) {
-            // participants配列から該当する名前を探す
-            const matchedP = participants.find(p => p.id === slot.participant_id);
-            const pName = matchedP ? matchedP.name : '不明';
-            
-            rightContent = `
-              <div class="text-right">
-                <span class="font-bold text-gray-800 block">${pName} さん</span>
-                <button onclick="cancelSlot('${slot.id}')" class="text-xs text-gray-500 underline mt-1">変更(Cancel)</button>
-              </div>
-            `;
-          } else {
-            let options = `<option value="">選択(Select)</option>`;
-            unbooked.forEach(p => {
-              options += `<option value="${p.id}">${p.name}</option>`;
-            });
-            rightContent = `
-              <div class="flex gap-2 items-center">
-                <select id="select-${slot.id}" class="text-sm border p-1 rounded max-w-[120px]">
-                  ${options}
-                </select>
-                <button onclick="bookSlot('${slot.id}')" class="bg-blue-600 text-white text-xs py-1.5 px-3 rounded shadow hover:bg-blue-700">予約 / Book</button>
-              </div>
-            `;
-          }
-
-// 丸数字に変換するための定義
-          const slotMarks = { 1: '❶', 2: '❷', 3: '❸' };
-          const mark = slotMarks[slot.slot_number] || slot.slot_number;
-          
-          div.innerHTML = `
-            <div class="text-sm text-gray-700 font-medium">
-              ${timeStr} <span class="ml-1 text-xs bg-gray-200 text-gray-600 px-1 rounded">${mark}</span>
-            </div>
-            ${rightContent}
-          `;
-          container.appendChild(div);
-        });
-      });
-    }
-
-    async function bookSlot(slotId) {
-      const selectEl = document.getElementById(`select-${slotId}`);
-      const participantId = selectEl.value;
-      if (!participantId) {
-        alert('名前を選択してください / Please select your name');
-        return;
-      }
-      const { error } = await db.from('slots').update({ participant_id: participantId }).eq('id', slotId);
-      if (error) alert('エラーが発生しました / Error occurred');
-      else loadData();
-    }
-
-    async function cancelSlot(slotId) {
-      if(!confirm('この予約を取り消して空き枠に戻しますか？\nCancel this booking?')) return;
-      const { error } = await db.from('slots').update({ participant_id: null }).eq('id', slotId);
-      if (error) alert('エラーが発生しました / Error occurred');
-      else loadData();
-    }
-
-    loadData();
-  </script>
 </body>
 </html>
